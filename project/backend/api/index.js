@@ -10,6 +10,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import fetch from 'node-fetch';
 import Anthropic from '@anthropic-ai/sdk';
 import puppeteer from 'puppeteer';
+import jwt from 'jsonwebtoken';
 
 // Konfiguration
 dotenv.config();
@@ -33,8 +34,31 @@ const corsOptions = {
 const app = express();
 const port = process.env.PORT || 3000;
 
+// JWT-Konfiguration
+const JWT_SECRET = process.env.JWT_SECRET || 'dein-super-geheimer-schluessel-fuer-jwt';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Middleware zur Überprüfung des JWT
+const authenticateJWT = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+
+        jwt.verify(token, JWT_SECRET, (err, user) => {
+            if (err) {
+                return res.status(403).json({ error: 'Token ungültig oder abgelaufen' });
+            }
+            req.user = user;
+            next();
+        });
+    } else {
+        res.status(401).json({ error: 'Keine Authentifizierung' });
+    }
+};
 
 // Wichtig: Statisches Verzeichnis korrekt einbinden
 app.use('/uploads/vehicles', express.static(path.join(projectRoot, 'uploads', 'vehicles')));
@@ -65,21 +89,37 @@ app.get('/api/db-test', async (req, res) => {
   }
 });
 
+// Admin Login Route
 app.post('/api/admin/login', (req, res) => {
     const { username, password } = req.body;
-
-    // Debugging: Logge die empfangenen Daten
-    console.log('Empfangene Daten:', username, password);
-
     const adminUsername = 'root';
     const adminPassword = '123456';
 
     if (username === adminUsername && password === adminPassword) {
-        const token = 'secure-admin-token';
-        res.status(200).json({ token });
+        const token = jwt.sign(
+            { 
+                username: username,
+                role: 'admin'
+            },
+            JWT_SECRET,
+            { expiresIn: JWT_EXPIRES_IN }
+        );
+        
+        res.status(200).json({ 
+            token,
+            user: {
+                username,
+                role: 'admin'
+            }
+        });
     } else {
         res.status(401).json({ error: 'Ungültige Zugangsdaten' });
     }
+});
+
+// Geschützte Admin-Route für Profil
+app.get('/api/admin/profile', authenticateJWT, (req, res) => {
+    res.json({ user: req.user });
 });
 
 // Multer Konfiguration
@@ -117,7 +157,7 @@ const upload = multer({
 });
 
 // DELETE Fahrzeug
-app.delete('/api/vehicles/:id', async (req, res) => {
+app.delete('/api/vehicles/:id', authenticateJWT, async (req, res) => {
     const { id } = req.params;
     const client = await pool.connect();
     try {
@@ -209,7 +249,7 @@ app.get('/api/vehicles/:id', async (req, res) => {
 });
 
 // Fahrzeug erstellen mit Bildupload
-app.post('/api/vehicles', upload.array('images', 10), async (req, res) => {
+app.post('/api/vehicles', authenticateJWT, upload.array('images', 10), async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -309,7 +349,7 @@ app.post('/api/vehicles', upload.array('images', 10), async (req, res) => {
 });
 
 // Fahrzeug aktualisieren
-app.put('/api/vehicles/:id', upload.array('images', 10), async (req, res) => {
+app.put('/api/vehicles/:id', authenticateJWT, upload.array('images', 10), async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');

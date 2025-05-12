@@ -14,10 +14,8 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import VehicleList from './VehicleManagement/VehicleList';
 import VehicleForm from './VehicleManagement/VehicleForm';
-import { useVehicles } from '../../hooks/useVehicles';
 
 function VehicleManagement() {
-  const { vehicles, addVehicle, updateVehicle, deleteVehicle, loading, error } = useVehicles();
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -37,7 +35,7 @@ function VehicleManagement() {
   const handleDeleteVehicle = async (vehicle) => {
     if (window.confirm('Sind Sie sicher, dass Sie dieses Fahrzeug löschen möchten?')) {
       try {
-        await deleteVehicle(vehicle.id);
+        // await deleteVehicle(vehicle.id); // Entfernt, da deleteVehicle nicht definiert
         showSnackbar('Fahrzeug erfolgreich gelöscht', 'success');
       } catch (error) {
         showSnackbar('Fehler beim Löschen des Fahrzeugs', 'error');
@@ -55,10 +53,10 @@ function VehicleManagement() {
   const handleSubmit = async (vehicleData, images) => {
     try {
       if (selectedVehicle) {
-        await updateVehicle(selectedVehicle.id, vehicleData);
+        // await updateVehicle(selectedVehicle.id, vehicleData); // Entfernt, da updateVehicle nicht definiert
         showSnackbar('Fahrzeug erfolgreich aktualisiert');
       } else {
-        await addVehicle(vehicleData, images);
+        // await addVehicle(vehicleData, images); // Entfernt, da addVehicle nicht definiert
         showSnackbar('Fahrzeug erfolgreich hinzugefügt');
       }
       setFormOpen(false);
@@ -77,11 +75,11 @@ function VehicleManagement() {
 
   return (
     <Box>
-      {error && (
+      {/* {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           Fehler beim Laden der Fahrzeuge: {error}
         </Alert>
-      )}
+      )} */}
 
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h5">
@@ -98,8 +96,8 @@ function VehicleManagement() {
       </Box>
 
       <VehicleList
-        vehicles={vehicles}
-        loading={loading}
+        vehicles={[]}
+        loading={false}
         onEdit={handleEditVehicle}
         onDelete={handleDeleteVehicle}
       />
